@@ -9,7 +9,7 @@ const getToken = () => {
 };
 
 // const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-const baseUrl = "http://localhost:8081/";
+const baseUrl = "https://remediar-api.mgioqc.easypanel.host/api";
 
 export const api = axios.create({
   baseURL: baseUrl,

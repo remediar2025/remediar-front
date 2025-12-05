@@ -47,6 +47,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         password,
       });
 
+      console.log("Resposta do login:", resposta);
+
       const token = resposta.data?.Token;
       if (!token) throw new Error("Token não recebido");
 

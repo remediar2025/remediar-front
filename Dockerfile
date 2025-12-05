@@ -5,8 +5,8 @@ FROM node:18-bullseye
 WORKDIR /app
 
 # Variáveis de ambiente - colocar antes do npm install!
-ENV NEXT_PUBLIC_API_URL=http://177.212.5.219:8085/api
-ENV NEXT_PUBLIC_API_BASE_URL=http://177.212.5.219:8085/api
+ENV NEXT_PUBLIC_API_URL=https://remediar-api.mgioqc.easypanel.host/api
+ENV NEXT_PUBLIC_API_BASE_URL=https://remediar-api.mgioqc.easypanel.host/api
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV TAILWIND_MODE=build

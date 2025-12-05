@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   },
 
   env: {
-    NEXT_PUBLIC_API_URL: 'http://177.212.5.219:8085/api',
+    NEXT_PUBLIC_API_URL: 'https://remediar-api.mgioqc.easypanel.host/api',
   }
 };
 

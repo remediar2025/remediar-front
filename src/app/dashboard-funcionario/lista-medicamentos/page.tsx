@@ -64,7 +64,7 @@ export default function ListaMedicamentos() {
 
   const dadosFiltrados = dados
     .filter((item) =>
-      item.nomeComercial.toLowerCase().includes(filtro.toLowerCase())
+      item.nomeComercial?.toLowerCase()?.includes(filtro?.toLowerCase())
     )
     .sort((a, b) => {
       if (ordenacao === "nome") {

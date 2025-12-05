@@ -31,6 +31,7 @@ export const login = async (
     login: string,
     password: string
 ): Promise<AuthResponse> => {
+  console.log("Iniciando login para:", login);
     const response = await api.post<AuthResponse>("/auth/login", {
         login,
         password,

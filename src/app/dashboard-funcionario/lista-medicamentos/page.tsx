@@ -56,7 +56,7 @@ export default function ListaMedicamentos() {
     }
   };
 
-  const handlePreviousPage = () => {
+  const handlePreviousPage = () => { 
     if (page > 0) {
       fetchMedicamentos(page - 1);
     }

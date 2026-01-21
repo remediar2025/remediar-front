@@ -33,11 +33,11 @@ export type Solicitation = {
 export type StatusKeys = Exclude<Solicitation['status'], undefined>;
 
 export interface FuncionarioResponse {
-    id: number;
-    nome: string;
-    email: string;
-    cpf: string;
-    telefone: string;
+  id: number
+  nome: string
+  email: string
+  telefone: string
+  cpf: string
   }
 
 export interface FuncionarioRequest {

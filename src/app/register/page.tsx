@@ -3,15 +3,7 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   User,
   Phone,
@@ -23,16 +15,12 @@ import {
   CircleDot,
   Users,
   Wallet,
-  Lock,
   ChevronRight,
-  Eye,
-  EyeOff,
   FileText,
   Calendar,
   BookOpen,
   Users2,
 } from "lucide-react";
-import type { JSX } from "react/jsx-runtime";
 
 import Logo from "@/assets/Ativo 12.png";
 import Background from "@/assets/Rectangle 1.png";
@@ -43,6 +31,7 @@ import { escolaridadeOptions, generoOptions } from "../../services/enums/enum";
 import InputWithIcon from "@/components/Dashboard/inputs/InputWithIcon";
 import SelectWithIcon from "@/components/Dashboard/inputs/SelectWithIcon";
 import PasswordInput from "@/components/Dashboard/inputs/PasswordInput";
+import { toast, Toaster } from "sonner";
 
 /**
  * Converte uma data ISO (yyyy-MM-dd) em dd/MM/yyyy – formato que o backend espera.
@@ -54,6 +43,39 @@ function toBackendDate(iso: string): string {
     return `${d}/${m}/${y}`;
   }
   return iso;
+}
+
+async function verificarDocumentoExistente(documento: string): Promise<boolean> {
+  const documentoDigits = documento.replace(/\D/g, "");
+  if (documentoDigits.length !== 11 && documentoDigits.length !== 14) {
+    console.log("Documento incompleto, não verifica.");
+    return false;
+  }
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/usuarios/existsByDocument/${documentoDigits}`
+    );
+    const exists = await response.text();
+    console.log("Retorno da API:", exists);
+    return exists === "true";
+  } catch (error) {
+    console.error("Erro ao verificar documento:", error);
+    return false;
+  }
+}
+
+async function verificarEmailExistente(email: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/usuarios/existsByEmail/${email}`
+    );
+    const exists = await response.text();
+    console.log("Retorno da API:", exists);
+    return exists === "true";
+  } catch (error) {
+    console.error("Erro ao verificar email:", error);
+    return false;
+  }
 }
 
 function buildPayload(cadastro: DadosCadastro, isPF: boolean) {
@@ -191,6 +213,8 @@ export default function MultiStepRegister() {
     },
   });
 
+  const [confirmarEmail, setConfirmarEmail] = useState("");
+
   // Detecta PF/PJ pelo tamanho do documento
   useEffect(() => {
     const documentoDigits = dadosCadastro.documento.replace(/\D/g, "");
@@ -224,7 +248,7 @@ export default function MultiStepRegister() {
     return () => clearTimeout(timeout); // Limpa timeout se o usuário continuar digitando
   }, [dadosCadastro.endereco.cep]);
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (step === 1) {
       const camposObrigatorios = [];
 
@@ -232,6 +256,7 @@ export default function MultiStepRegister() {
       if (!dadosCadastro.documento) camposObrigatorios.push("documento");
       if (!dadosCadastro.telefone) camposObrigatorios.push("telefone");
       if (!dadosCadastro.user.login) camposObrigatorios.push("email");
+      if (!confirmarEmail) camposObrigatorios.push("confirmarEmail");
 
       if (camposObrigatorios.length > 0) {
         setCamposComErro(camposObrigatorios);
@@ -264,6 +289,14 @@ export default function MultiStepRegister() {
         return;
       }
 
+      const documentoJaExiste = await verificarDocumentoExistente(dadosCadastro.documento);
+      if (documentoJaExiste) {
+        setCamposComErro(["documento"]);
+        setErro("Já existe um usuário cadastrado com este documento.");
+        toast.error("Já existe um usuário cadastrado com este documento.");
+        return;
+      }
+
       const telefoneDigits = dadosCadastro.telefone.replace(/\D/g, "");
       if (!/^(\d{2})(9\d{8})$/.test(telefoneDigits)) {
         setCamposComErro(["telefone"]);
@@ -273,10 +306,24 @@ export default function MultiStepRegister() {
         return;
       }
 
+      const emailJaExiste = await verificarEmailExistente(dadosCadastro.user.login);
+      if (emailJaExiste) {
+        setCamposComErro(["email", "confirmarEmail"]);
+        setErro("Já existe um usuário cadastrado com este email.");
+        toast.error("Já existe um usuário cadastrado com este email.");
+        return;
+      }
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(dadosCadastro.user.login)) {
         setCamposComErro(["email"]);
         setErro("Email inválido.");
+        return;
+      }
+
+      if (dadosCadastro.user.login !== confirmarEmail) {
+        setCamposComErro(["email", "confirmarEmail"]);
+        setErro("Os emails não coincidem.");
         return;
       }
 
@@ -411,6 +458,7 @@ export default function MultiStepRegister() {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <div className="flex flex-1 items-center justify-center bg-[#1EAED3] relative">
+        <Toaster position="top-right" richColors />
         <Image
           src={Background || "/placeholder.svg"}
           alt="Background"
@@ -424,33 +472,32 @@ export default function MultiStepRegister() {
             alt="Logo"
             width={400}
             height={133}
-            className="mb-6"
           />
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-12 pt-20">
-        <div className="w-full max-w-[520px] mx-auto">
-          <div className="w-full mb-12">
-            <div className="h-2 bg-gray-200 rounded-full">
-              <div
-                className={`h-2 bg-[#1EAED3] rounded-full ${getProgressWidth()}`}
-              ></div>
-            </div>
-            <div className="text-right text-sm text-gray-500 mt-2">
-              {step}/{totalSteps}
-            </div>
-          </div>
-
-          <div className="space-y-10">
-            <div>
-              <h1 className="text-[2.5rem] font-bold tracking-tight">
+      <div className="flex flex-1 flex-col p-6 md:p-12">
+        <div className="w-full max-w-[520px] mx-auto my-auto">
+          <div className="space-y-2">
+            <div className="flex justify-between mb-8">
+              <h1 className="text-[2rem] font-bold tracking-tight w-64 mr-4">
                 Cadastre-se
               </h1>
+
+              <div className="mt-4 w-2/3 flex flex-col items-center items-end justify-center">
+                <div className="h-2 w-full bg-gray-200 rounded-full">
+                  <div
+                    className={`h-2 bg-[#1EAED3] rounded-full ${getProgressWidth()}`}
+                  ></div>
+                </div>
+                <div className="w-full text-right text-sm text-gray-500 mt-2">
+                  {step}/{totalSteps}
+                </div>
+              </div>
             </div>
 
             {step === 1 && (
-              <div className="space-y-8">
+              <div className="space-y-2 md:space-y-4">
                 <InputWithIcon
                   icon={<User />}
                   placeholder="Nome completo"
@@ -463,38 +510,46 @@ export default function MultiStepRegister() {
                   fieldName="nome"
                   camposComErro={camposComErro}
                 />
-                <InputWithIcon
-                  icon={<FileText />}
-                  placeholder="CPF/CNPJ"
-                  label={`Documento (${isPF ? "CPF" : "CNPJ"})`}
-                  value={dadosCadastro.documento}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      documento: e.target.value,
-                    })
-                  }
-                  mask={isPF ? "999.999.999-99" : "99.999.999/9999-99"}
-                  required
-                  fieldName="documento"
-                  camposComErro={camposComErro}
-                />
-                <InputWithIcon
-                  icon={<Phone />}
-                  placeholder="Telefone"
-                  label="Telefone"
-                  value={dadosCadastro.telefone}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      telefone: e.target.value,
-                    })
-                  }
-                  mask="(99) 99999-9999"
-                  required
-                  fieldName="telefone"
-                  camposComErro={camposComErro}
-                />
+                <div className="flex space-x-2 space-y-0 w-full">
+                  <div className="w-1/2">
+                    <InputWithIcon
+                      icon={<FileText />}
+                      placeholder="CPF/CNPJ"
+                      label={`Documento (${isPF ? "CPF" : "CNPJ"})`}
+                      value={dadosCadastro.documento}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          documento: e.target.value,
+                        })
+                      }
+                      onBlur={(e) => verificarDocumentoExistente(e.target.value)}
+                      mask={isPF ? "999.999.999-99" : "99.999.999/9999-99"}
+                      required
+                      fieldName="documento"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <InputWithIcon
+                      icon={<Phone />}
+                      placeholder="Telefone"
+                      label="Telefone"
+                      value={dadosCadastro.telefone}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          telefone: e.target.value,
+                        })
+                      }
+                      mask="(99) 99999-9999"
+                      required
+                      fieldName="telefone"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                </div>
+
                 <InputWithIcon
                   icon={<Mail />}
                   placeholder="Email"
@@ -506,12 +561,26 @@ export default function MultiStepRegister() {
                       user: { ...dadosCadastro.user, login: e.target.value },
                     })
                   }
+                  onBlur={(e) => verificarEmailExistente(e.target.value)}
                   type="email"
                   required
                   fieldName="email"
                   camposComErro={camposComErro}
                 />
+                <InputWithIcon
+                  icon={<Mail />}
+                  placeholder="Confirme o email"
+                  label="Confirmar Email"
+                  value={confirmarEmail}
+                  onChange={(e) => setConfirmarEmail(e.target.value)}
+                  type="email"
+                  required
+                  fieldName="confirmarEmail"
+                  camposComErro={camposComErro}
+                />                
+                
                 {erro && <p className="text-red-500 text-sm">{erro}</p>}
+                
                 <div className="flex space-x-4">
                   <Button
                     onClick={() => router.push("/login")}
@@ -531,125 +600,154 @@ export default function MultiStepRegister() {
             )}
 
             {step === 2 && (
-              <div className="space-y-8">
-                <InputWithIcon
-                  icon={<Home />}
-                  placeholder="CEP"
-                  label="CEP"
-                  value={dadosCadastro.endereco.cep}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        cep: e.target.value,
-                      },
-                    })
-                  }
-                  mask="99999-999"
-                  fieldName="cep"
-                  camposComErro={camposComErro}
-                />
-                <SelectWithIcon
-                  icon={<MapPin />}
-                  label="Estado"
-                  options={["SP", "MG", "RJ"]}
-                  value={dadosCadastro.endereco.estado}
-                  onChange={(valor) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: { ...dadosCadastro.endereco, estado: valor },
-                    })
-                  }
-                />
-                <InputWithIcon
-                  icon={<Building2 />}
-                  placeholder="Cidade"
-                  label="Cidade"
-                  value={dadosCadastro.endereco.cidade}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        cidade: e.target.value,
-                      },
-                    })
-                  }
-                  fieldName="cidade"
-                  camposComErro={camposComErro}
-                />
-                <InputWithIcon
-                  icon={<Map />}
-                  placeholder="Rua"
-                  label="Rua"
-                  value={dadosCadastro.endereco.rua}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        rua: e.target.value,
-                      },
-                    })
-                  }
-                  fieldName="rua"
-                  camposComErro={camposComErro}
-                />
-                <InputWithIcon
-                  icon={<CircleDot />}
-                  placeholder="Bairro"
-                  label="Bairro"
-                  value={dadosCadastro.endereco.bairro}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        bairro: e.target.value,
-                      },
-                    })
-                  }
-                  fieldName="bairro"
-                  camposComErro={camposComErro}
-                />
-                <InputWithIcon
-                  icon={<Home />}
-                  placeholder="Complemento"
-                  label="Complemento"
-                  value={dadosCadastro.endereco.complemento ?? ""}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        complemento: e.target.value,
-                      },
-                    })
-                  }
-                  fieldName="complemento"
-                  camposComErro={camposComErro}
-                />
+              <div className="space-y-2 md:space-y-4">
+                <div className="md:flex md:space-x-2 space-y-4 md:space-y-0 w-full">
+                  <div className="lg:w-1/3">
+                    <InputWithIcon
+                      icon={<Home />}
+                      placeholder="CEP"
+                      label="CEP"
+                      value={dadosCadastro.endereco.cep}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          endereco: {
+                            ...dadosCadastro.endereco,
+                            cep: e.target.value,
+                          },
+                        })
+                      }
+                      mask="99999-999"
+                      fieldName="cep"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                  <div className="md:flex space-x-2 space-y-4 md:space-y-0 md:w-2/3">
+                    <div className="md:w-1/2">
+                      <SelectWithIcon
+                        icon={<MapPin />}
+                        label="Estado"
+                        options={["SP", "MG", "RJ"]}
+                        value={dadosCadastro.endereco.estado}
+                        onChange={(valor) =>
+                          setDadosCadastro({
+                            ...dadosCadastro,
+                            endereco: {
+                              ...dadosCadastro.endereco,
+                              estado: valor,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:w-1/2">
+                      <InputWithIcon
+                        icon={<CircleDot />}
+                        placeholder="Número"
+                        label="Número"
+                        value={dadosCadastro.endereco.numero}
+                        onChange={(e) =>
+                          setDadosCadastro({
+                            ...dadosCadastro,
+                            endereco: {
+                              ...dadosCadastro.endereco,
+                              numero: e.target.value,
+                            },
+                          })
+                        }
+                        mask="99999"
+                        fieldName="numero"
+                        camposComErro={camposComErro}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                <InputWithIcon
-                  icon={<CircleDot />}
-                  placeholder="Número"
-                  label="Número"
-                  value={dadosCadastro.endereco.numero}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      endereco: {
-                        ...dadosCadastro.endereco,
-                        numero: e.target.value,
-                      },
-                    })
-                  }
-                  mask="99999"
-                  fieldName="numero"
-                  camposComErro={camposComErro}
-                />
+                <div className="md:flex space-x-2 space-y-4 md:space-y-0 w-full">
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Map />}
+                      placeholder="Rua"
+                      label="Rua"
+                      value={dadosCadastro.endereco.rua}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          endereco: {
+                            ...dadosCadastro.endereco,
+                            rua: e.target.value,
+                          },
+                        })
+                      }
+                      fieldName="rua"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Home />}
+                      placeholder="Complemento"
+                      label="Complemento"
+                      value={dadosCadastro.endereco.complemento ?? ""}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          endereco: {
+                            ...dadosCadastro.endereco,
+                            complemento: e.target.value,
+                          },
+                        })
+                      }
+                      fieldName="complemento"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                </div>
+
+                <div className="md:flex space-x-2 space-y-4 md:space-y-0 w-full">
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Building2 />}
+                      placeholder="Cidade"
+                      label="Cidade"
+                      value={dadosCadastro.endereco.cidade}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          endereco: {
+                            ...dadosCadastro.endereco,
+                            cidade: e.target.value,
+                          },
+                        })
+                      }
+                      fieldName="cidade"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<CircleDot />}
+                      placeholder="Bairro"
+                      label="Bairro"
+                      value={dadosCadastro.endereco.bairro}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          endereco: {
+                            ...dadosCadastro.endereco,
+                            bairro: e.target.value,
+                          },
+                        })
+                      }
+                      fieldName="bairro"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                </div>
+
                 {erro && <p className="text-red-500 text-sm">{erro}</p>}
+
                 <div className="flex space-x-4">
                   <Button
                     onClick={prevStep}
@@ -670,22 +768,78 @@ export default function MultiStepRegister() {
 
             {step === 3 && isPF && (
               <div className="space-y-5">
-                <InputWithIcon
-                  icon={<Calendar />}
-                  type="date"
-                  placeholder="Data de nascimento"
-                  label="Data de nascimento"
-                  value={dadosCadastro.dataNascimento}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      dataNascimento: e.target.value,
-                    })
-                  }
-                  required
-                  fieldName="dataNascimento"
-                  camposComErro={camposComErro}
-                />
+                <div className="md:flex space-x-2 space-y-4 md:space-y-0">
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Calendar />}
+                      type="date"
+                      placeholder="Data de nascimento"
+                      label="Data de nascimento"
+                      value={dadosCadastro.dataNascimento}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          dataNascimento: e.target.value,
+                        })
+                      }
+                      required
+                      fieldName="dataNascimento"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+
+                  <div className="md:w-1/2">
+                    <SelectWithIcon
+                      icon={<Users2 />}
+                      label="Gênero"
+                      options={generoOptions}
+                      value={dadosCadastro.genero}
+                      onChange={(valor) =>
+                        setDadosCadastro({ ...dadosCadastro, genero: valor })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="md:flex space-x-2 space-y-4 md:space-y-0">
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Users />}
+                      placeholder="Nº de Pessoas"
+                      label="Número de moradores na residência"
+                      type="number"
+                      value={dadosCadastro.qtdPessoasCasa.toString()}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          qtdPessoasCasa: Number(e.target.value),
+                        })
+                      }
+                      required
+                      fieldName="qtdPessoasCasa"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+
+                  <div className="md:w-1/2">
+                    <InputWithIcon
+                      icon={<Wallet />}
+                      placeholder="Renda Familiar"
+                      label="Renda Familiar"
+                      type="number"
+                      value={dadosCadastro.rendaFamiliar.toString()}
+                      onChange={(e) =>
+                        setDadosCadastro({
+                          ...dadosCadastro,
+                          rendaFamiliar: Number(e.target.value),
+                        })
+                      }
+                      required
+                      fieldName="rendaFamiliar"
+                      camposComErro={camposComErro}
+                    />
+                  </div>
+                </div>
 
                 <SelectWithIcon
                   icon={<BookOpen />}
@@ -697,48 +851,8 @@ export default function MultiStepRegister() {
                   }
                 />
 
-                <SelectWithIcon
-                  icon={<Users2 />}
-                  label="Gênero"
-                  options={generoOptions}
-                  value={dadosCadastro.genero}
-                  onChange={(valor) =>
-                    setDadosCadastro({ ...dadosCadastro, genero: valor })
-                  }
-                />
-                <InputWithIcon
-                  icon={<Users />}
-                  placeholder="Nº de Pessoas"
-                  label="Número de moradores na residência"
-                  type="number"
-                  value={dadosCadastro.qtdPessoasCasa.toString()}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      qtdPessoasCasa: Number(e.target.value),
-                    })
-                  }
-                  required
-                  fieldName="qtdPessoasCasa"
-                  camposComErro={camposComErro}
-                />
-                <InputWithIcon
-                  icon={<Wallet />}
-                  placeholder="Renda Familiar"
-                  label="Renda Familiar"
-                  type="number"
-                  value={dadosCadastro.rendaFamiliar.toString()}
-                  onChange={(e) =>
-                    setDadosCadastro({
-                      ...dadosCadastro,
-                      rendaFamiliar: Number(e.target.value),
-                    })
-                  }
-                  required
-                  fieldName="rendaFamiliar"
-                  camposComErro={camposComErro}
-                />
                 {erro && <p className="text-red-500 text-sm">{erro}</p>}
+
                 <div className="flex space-x-4">
                   <Button
                     onClick={prevStep}
@@ -758,7 +872,7 @@ export default function MultiStepRegister() {
             )}
 
             {step === 4 && (
-              <div className="space-y-8">
+              <div className="space-y-4">
                 <PasswordInput
                   placeholder="Senha"
                   label="Senha"

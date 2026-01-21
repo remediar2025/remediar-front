@@ -41,7 +41,7 @@ export default function FuncionarioForm({ closeModal }: FuncionarioFormProps) {
       usuario: {
         login: "",
         password: "",
-        role: "FUNCIONARIO",
+        role: "ADMIN",
       },
       confirmarSenha: "",
     },

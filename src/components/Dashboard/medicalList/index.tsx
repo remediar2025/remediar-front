@@ -73,7 +73,7 @@ export function MedicamentosTable({ data, onView, onEdit, onDelete }: Medicament
                   <TableCell>{medicamento.statusProduto}</TableCell>
                   <TableCell className="flex gap-2 justify-center">
                     <button
-                      onClick={() => router.push(`/dashboard-funcionario/lista-medicamentos/view-remedio?medicamento=${encodeURIComponent(JSON.stringify(medicamento))}`)}
+                      onClick={() => router.push(`/dashboard-funcionario/lista-medicamentos/view-remedio?id=${medicamento.id}`)}
                       className="text-blue-500 hover:text-blue-700"
                     >
                       <Eye className="w-4 h-4" />

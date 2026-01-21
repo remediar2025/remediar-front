@@ -14,6 +14,7 @@ import { Solicitation } from "@/lib/types";
 import { api } from "@/services/api/api";
 import ENDPOINTS from "@/services/endpoints";
 import { useAuth } from "@/contexts/AuthContext";
+import { solicitacaoSchema } from "@/utils/validations/ZodSchema";
 
 
 interface SolicitationFormProps {
@@ -26,6 +27,15 @@ interface SolicitationFormProps {
   };
 }
 
+interface DadosPessoais {
+    id: string;
+    nome: string;
+    documento: string;
+    telefone: string;
+    email: string;
+    endereco: string;
+}
+
 export function SolicitacaoForm({ solicitation, onClose, onStatusChange, currentUser }: SolicitationFormProps) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.5);
@@ -33,6 +43,34 @@ export function SolicitacaoForm({ solicitation, onClose, onStatusChange, current
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const { user } = useAuth();
+
+  // Estado para armazenar e-mail e endereço completos do usuário solicitante
+  const [usuarioInfo, setUsuarioInfo] = useState<{ email: string; endereco: string }>({
+    email: "Não informado",
+    endereco: "Não informado"
+  });
+
+  useEffect(() => {
+    const usuarioId = (solicitation.dadosPessoais as any).id;
+    if (!usuarioId) return;
+
+    // Busca do backend oficial
+    api.get(`https://ongremediar.com.br/api/usuarios/${usuarioId}`)
+      .then(response => {
+        const data = response.data;
+        const enderecoObj = data.usuario?.endereco;
+        const enderecoFormatado = enderecoObj
+          ? `${enderecoObj.rua}, ${enderecoObj.numero}${enderecoObj.complemento ? ' ' + enderecoObj.complemento : ''} - ${enderecoObj.cidade} - ${enderecoObj.estado}, ${enderecoObj.cep}`
+          : "Não informado";
+        setUsuarioInfo({
+          email: data.usuario?.user?.login || "Não informado",
+          endereco: enderecoFormatado
+        });
+      })
+      .catch(() => {
+        setUsuarioInfo({ email: "Não informado", endereco: "Não informado" });
+      });
+  }, [solicitation.dadosPessoais]);
 
 
   const handleImageClick = () => {
@@ -115,6 +153,8 @@ export function SolicitacaoForm({ solicitation, onClose, onStatusChange, current
     };
   }, [isDragging, isZoomed]);
 
+  
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-2 sm:p-3">
@@ -141,8 +181,8 @@ export function SolicitacaoForm({ solicitation, onClose, onStatusChange, current
               </div>
               <div className="space-y-2">
                 <InfoItem icon={User} label="Nome" value={solicitation.dadosPessoais.nome} />
-                <InfoItem icon={Mail} label="E-mail" value={solicitation.dadosPessoais.email} />
-                <InfoItem icon={MapPin} label="Endereço" value={solicitation.dadosPessoais.endereco} />
+                <InfoItem icon={Mail} label="E-mail" value={usuarioInfo.email} />
+                <InfoItem icon={MapPin} label="Endereço" value={usuarioInfo.endereco} />
                 <InfoItem icon={Phone} label="Telefone" value={solicitation.dadosPessoais.telefone} />
               </div>
             </div>

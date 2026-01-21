@@ -9,7 +9,7 @@ import { Boxes } from "lucide-react";
 export default function ViewEstoque(){
     return(
         <DashboardLayout
-            title="Gerência de Estoque"
+            title="Item Estoque"
             Icon={() => <Boxes />}
             menuPrincipalItems={menuPrincipalItems}
             configuracaoItems={ConfiguracaoItems}

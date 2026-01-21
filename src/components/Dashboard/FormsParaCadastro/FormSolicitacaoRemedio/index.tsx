@@ -124,6 +124,22 @@ export default function SolicitacaoForm({ closeModal }: { closeModal: () => void
     reader.readAsDataURL(file);
   };
 
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      Object.entries(errors).forEach(([campo, erro]: [string, any]) => {
+        if (erro?.message) {
+          toast.error(erro.message);
+        } else if (typeof erro === "object") {
+          Object.entries(erro).forEach(([subcampo, suberro]: [string, any]) => {
+            if (suberro?.message) {
+              toast.error(suberro.message);
+            }
+          });
+        }
+      });
+    }
+  }, [errors]);
+
   return (
     <FormProvider {...methods}>
       <form
@@ -153,14 +169,28 @@ export default function SolicitacaoForm({ closeModal }: { closeModal: () => void
             await api.post(ENDPOINTS.PEDIDOS.CRUD, payload);
             toast.success("Solicitação cadastrada com sucesso!");
             closeModal();
-          } catch (error) {
-            toast.error("Erro ao enviar solicitação.");
+          } catch (error: any) {
+            if (
+              error?.response?.status === 422 &&
+              Array.isArray(error?.response?.data?.errors)
+            ) {
+              error.response.data.errors.forEach((err: any) => {
+                toast.error(err.message || "Erro de validação.");
+              });
+            } else if (
+              error?.response?.status === 422 &&
+              error?.response?.data?.message?.toLowerCase().includes("image")
+            ) {
+              toast.error("A imagem enviada está muito grande. O tamanho máximo permitido é 2MB.");
+            } else {
+              toast.error("Erro ao enviar solicitação.");
+            }
             console.error(error);
           }
         })}
-        className="max-w-4xl w-full rounded-lg shadow-md"
+        className="max-w-4xl w-full"
       >
-        <ScrollArea className="h-[80vh] p-6 flex flex-col gap-5">
+        <ScrollArea className="h-[80vh] p-2 md:p-4 flex flex-col gap-5">
           <h2 className="text-xl font-semibold border-b pb-2">Nova Solicitação</h2>
 
           {/* INFORMAÇÕES PESSOAIS */}
@@ -217,7 +247,7 @@ export default function SolicitacaoForm({ closeModal }: { closeModal: () => void
               <input
                 type="text"
                 placeholder="Ex: Baycuten N"
-                className={`w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full border border-gray-300 rounded-md px-3 py-2 ${
                   errors.item?.nomeComercialOrPrincipioAtivo ? "border-red-500" : ""
                 }`}
                 value={inputValue}

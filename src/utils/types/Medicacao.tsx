@@ -1,5 +1,6 @@
 export interface MedicacaoData {
-    id: number;
+    itemEstoqueId: number;
+    produtoId: number;
     nomeComercial: string;
     descricao: string | null;
     principioAtivo: string;

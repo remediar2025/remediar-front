@@ -1,10 +1,10 @@
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const API_BASE_URL = "https://remediar-api.mgioqc.easypanel.host";
+//const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export const ENDPOINTS = {
   MEDICAMENTOS: {
     CRUD: `${API_BASE_URL}/medicamentos`,
-    COD_BARRAS: `${API_BASE_URL}/medicamentos/codigoBarras`,
+    COD_BARRAS: `${API_BASE_URL}/medicamentos/codigoBarras` ,
   },
   FUNCIONARIO: {
     CRUD: `${API_BASE_URL}/funcionarios`
@@ -19,7 +19,8 @@ export const ENDPOINTS = {
     CRUD: `${API_BASE_URL}/estoque`
   },
   ITENS_ESTOQUE: {
-    CRUD: `${API_BASE_URL}/itens-estoque`
+    CRUD: `${API_BASE_URL}/itens-estoque`,
+    ESTOQUE_ID: `${API_BASE_URL}/itens-estoque/estoqueId`
   },
   PEDIDOS: {
     CRUD: `${API_BASE_URL}/solicitacoes/pedidos`
@@ -46,6 +47,10 @@ export const ENDPOINTS = {
     TOTAL_SOLICITACOES_NAO_ATENDIDAS: `${API_BASE_URL}/dashboard/total-solicitacoes-nao-atendidas`,
     TOTAL_MEDICAMENTOS_VENCIDOS: `${API_BASE_URL}/dashboard/total-medicamentos-vencidos`,
     FAIXA_ETARIA_POR_SOLICITACAO: `${API_BASE_URL}/dashboard/solicitacoes-por-faixa-etaria`,
+  },
+  PIX: {
+    GERAR: `${API_BASE_URL}/pix/gerar`,
+    CONFIRMAR: `${API_BASE_URL}/pix/confirmar`,
   }
 };
 

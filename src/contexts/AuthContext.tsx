@@ -16,9 +16,18 @@ type AuthContextType = {
   verificarCodigo: (email: string, codigo: string) => Promise<void>;
   reenviarCodigo: (email: string) => Promise<void>;
   isVerificado: (login: string) => Promise<boolean>;
+  checkTokenExpiration: () => boolean;
 };
 
-const AuthContext = createContext({} as AuthContextType);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -29,6 +38,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     sub: string;
     role: string;
     nome: string;
+    exp: number;
+  };
+
+  const checkTokenExpiration = (): boolean => {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+
+    try {
+      const decoded = jwtDecode<DecodedToken>(token);
+      const currentTime = Date.now() / 1000; // Converter para segundos
+      
+      if (decoded.exp < currentTime) {
+        // Token expirado
+        logout();
+        toast.error("Sua sessão expirou. Faça login novamente.");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Erro ao verificar token:", error);
+      logout();
+      return false;
+    }
   };
 
   const login = async (login: string, password: string) => {
@@ -41,13 +73,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // 2. Login normal
       const resposta = await api.post(`${ENDPOINTS.AUTH_LOGIN.CRUD}`, {
         login,
         password,
       });
-
-      console.log("Resposta do login:", resposta);
 
       const token = resposta.data?.Token;
       if (!token) throw new Error("Token não recebido");
@@ -170,6 +199,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem("token");
+    setUser(null);
+    window.location.href = "/login";
   };
 
   useEffect(() => {
@@ -177,6 +208,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (token) {
       try {
         const decoded = jwtDecode<DecodedToken>(token);
+        const currentTime = Date.now() / 1000;
+        
+        if (decoded.exp < currentTime) {
+          // Token expirado
+          logout();
+          return;
+        }
+        
         setUser({
           id: decoded.id,
           role: decoded.role,
@@ -185,10 +224,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
       } catch (err) {
         console.error("Erro ao decodificar token no carregamento:", err);
-        logout(); // remove token inválido
+        logout();
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      checkTokenExpiration();
+    }, 60000); // Verificar a cada minuto
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   return (
     <AuthContext.Provider
@@ -201,11 +250,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         reenviarCodigo,
         forgotPassword,
         logout,
+        checkTokenExpiration,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => useContext(AuthContext);

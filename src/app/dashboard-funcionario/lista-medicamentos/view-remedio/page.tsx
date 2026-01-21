@@ -9,7 +9,7 @@ import ClientRemedioView from "./ClientRemedioView";
 export default function ViewRemedio() {
   return (
     <DashboardLayout
-      title="Gerência de Estoque"
+      title="Gerência de Medicamentos"
       Icon={() => <Boxes />}
       menuPrincipalItems={menuPrincipalItems}
       configuracaoItems={ConfiguracaoItems}

@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/Dashboard/layouts/dashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 // no topo do seu componente
-import { api } from '@/services/api/api';  // ajuste o caminho conforme o seu projeto
+import { api } from '@/services/api/api';
 
 import {
   Dialog,
@@ -183,7 +183,7 @@ export default function Dashboard() {
       };
 
       // usa o interceptor pra mandar o Bearer token automaticamente
-      const res = await axios.post('http://remediar.duckdns.org:8083/pix/gerar', payload, { headers });
+      const res = await api.post('/pix/gerar', payload, { headers });
       setPixEmv(res.data.pix.emv);
       setCurrentStep('qr');
     } catch (error: unknown) {
@@ -202,7 +202,7 @@ export default function Dashboard() {
         return;
       }
 
-      const response = await axios.post('http://remediar.duckdns.org:8083/pix/confirmar', null, {
+      const response = await api.post('/pix/confirmar', null, {
         params: {
           transactionId: pixEmv,
           userId: userData.usuario?.id,

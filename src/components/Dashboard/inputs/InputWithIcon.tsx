@@ -9,6 +9,7 @@ interface InputWithIconProps {
   type?: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: ChangeEvent<HTMLInputElement>) => void;
   mask?: string;
   required?: boolean;
   fieldName: string;
@@ -22,6 +23,7 @@ export default function InputWithIcon({
   type = "text",
   value,
   onChange,
+  onBlur,
   mask = "",
   required = false,
   fieldName,
@@ -102,6 +104,7 @@ export default function InputWithIcon({
           placeholder={placeholder}
           value={value}
           onChange={handleChange}
+          onBlur={onBlur}
           className={`pl-14 h-16 text-lg border-2 rounded-md w-full bg-white ${
             temErro ? "border-red-500 focus:border-red-500" : ""
           }`}

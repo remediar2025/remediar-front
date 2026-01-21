@@ -25,7 +25,7 @@ export default function SelectWithIcon<T extends string>({
           {icon}
         </div>
         <Select value={value} onValueChange={(valor: T) => onChange(valor)}>
-          <SelectTrigger className="pl-14 h-20 py-7 text-base border-2 rounded-md w-full bg-white">
+          <SelectTrigger className="pl-14 h-24 py-7.5 text-base border-2 rounded-md w-full bg-white">
             <SelectValue placeholder={label} />
           </SelectTrigger>
           <SelectContent className="z-50">

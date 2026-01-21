@@ -10,9 +10,15 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
-  const hoje = new Date().toISOString().split("T")[0];
-  const [dataInicio, setDataInicio] = useState(hoje);
-  const [dataFim, setDataFim] = useState(hoje);
+  const hoje = new Date();
+  const hojeFormatado = hoje.toISOString().split("T")[0];
+  
+  const data365DiasAtras = new Date();
+  data365DiasAtras.setDate(data365DiasAtras.getDate() - 365);
+  const dataInicioFormatado = data365DiasAtras.toISOString().split("T")[0];
+
+  const [dataInicio, setDataInicio] = useState(dataInicioFormatado);
+  const [dataFim, setDataFim] = useState(hojeFormatado);
 
   return (
     <DataContext.Provider value={{ dataInicio, setDataInicio, dataFim, setDataFim }}>

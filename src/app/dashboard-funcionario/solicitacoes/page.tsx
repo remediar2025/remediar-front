@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { registerLocale } from "react-datepicker";
-import { ptBR } from 'date-fns/locale/pt-BR';
+import { ptBR } from "date-fns/locale/pt-BR";
 import { ConfiguracaoItems, menuPrincipalItems } from "@/utils/constants";
-registerLocale('pt-BR', ptBR);
+registerLocale("pt-BR", ptBR);
 import {
   Select,
   SelectContent,
@@ -43,14 +43,17 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { api } from "@/services/api/api";
 import ENDPOINTS from "@/services/endpoints";
-import axios from "axios";
-import { AxiosError, isAxiosError } from 'axios';
+import AdvancedFiltersSolicitacoes, { FilterRuleSolicitacao } from "@/components/Dashboard/Filters/AdvancedFiltersSolcitacoes";
 
 type Usuario = {
   id: number;
@@ -64,10 +67,10 @@ type Usuario = {
   escolaridade: string;
 };
 
-
 type Solicitation = {
   id: string;
   dadosPessoais: {
+    id: string;
     nome: string;
     email: string;
     documento: string;
@@ -101,7 +104,15 @@ type Solicitation = {
     observacao: string;
     dataHora: string;
   }>;
-  status: "PENDENTE" | "EM_ANALISE" | "APROVADA" | "REJEITADA" | "CONCLUIDA" | "CANCELADA" | "SEPARADA" | "AGUARDANDO_RETIRADA";
+  status:
+    | "PENDENTE"
+    | "EM_ANALISE"
+    | "APROVADA"
+    | "REJEITADA"
+    | "CONCLUIDA"
+    | "CANCELADA"
+    | "SEPARADA"
+    | "AGUARDANDO_RETIRADA";
   responsavel?: string;
 };
 
@@ -120,20 +131,25 @@ interface ErrorResponse {
 const transformSolicitacaoAPI = (apiData: any): Solicitation => ({
   id: apiData.solicitacao.id,
   dadosPessoais: {
+    id: apiData.solicitacao.usuario.id,
     nome: apiData.solicitacao.usuario.nome,
     documento: apiData.solicitacao.usuario.documento,
     telefone: apiData.solicitacao.usuario.telefone,
-    email: "Não informado",
-    endereco: "Não informado",
+    email: apiData.solicitacao.usuario.email,
+    endereco: apiData.solicitacao.usuario.endereco,
   },
   itemSolicitacao: {
     medicamento: apiData.item.nomeComercialOrPrincipioAtivo || "Desconhecido",
     quantidade: apiData.item.quantidade,
     modoEntrega: apiData.modoEntrega,
-    dataSolicitacao: parseCustomDate(apiData.solicitacao.dataHoraCriacao).toLocaleString("pt-BR"),
+    dataSolicitacao: parseCustomDate(
+      apiData.solicitacao.dataHoraCriacao
+    ).toLocaleString("pt-BR"),
   },
   prescricaoMedica: {
-    data: parseCustomDate(apiData.prescricaoMedica.dataEmissao).toLocaleDateString("pt-BR"),
+    data: parseCustomDate(
+      apiData.prescricaoMedica.dataEmissao
+    ).toLocaleDateString("pt-BR"),
     nomePaciente: apiData.prescricaoMedica.nomePaciente,
     idadePaciente: apiData.prescricaoMedica.idadePaciente.toString(),
     genero: apiData.prescricaoMedica.generoPaciente,
@@ -154,16 +170,16 @@ const transformSolicitacaoAPI = (apiData: any): Solicitation => ({
     status: h.status,
     observacao: h.observacao,
   })),
-  responsavel: apiData.solicitacao.funcionarioResponsavelAtual?.nome || undefined,
+  responsavel:
+    apiData.solicitacao.funcionarioResponsavelAtual?.nome || undefined,
 });
 
-
 const parseCustomDate = (dateString: string): Date => {
-  const [datePart, timePart] = dateString.split(' ');
-  const [day, month, year] = datePart.split('/').map(Number);
+  const [datePart, timePart] = dateString.split(" ");
+  const [day, month, year] = datePart.split("/").map(Number);
 
   if (timePart) {
-    const [hours, minutes] = timePart.split(':').map(Number);
+    const [hours, minutes] = timePart.split(":").map(Number);
     return new Date(year, month - 1, day, hours, minutes);
   }
 
@@ -194,25 +210,97 @@ const renderStatus = (status: string) => {
 
 export default function GerenciarSolicitacoes() {
   const [data, setData] = useState<Solicitation[]>([]);
-  const [selectedSolicitation, setSelectedSolicitation] = useState<Solicitation | null>(null);
+  const [selectedSolicitation, setSelectedSolicitation] =
+    useState<Solicitation | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
-  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
+    null,
+    null,
+  ]);
   const [startDate, endDate] = dateRange;
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  // Novo estado para armazenar e-mails buscados
+  const [userEmails, setUserEmails] = useState<Record<string, string>>({});
+
+  const [advancedFilters, setAdvancedFilters] = useState<FilterRuleSolicitacao[]>([]);
+  const [filteredSolicitacoes, setFilteredSolicitacoes] = useState<Solicitation[]>([]);
 
   const currentUser = {
     id: "user-id-exemplo",
-    nome: "Funcionário Exemplo"
+    nome: "Funcionário Exemplo",
   };
+
+  function applyAdvancedFilters(solicitacoes: Solicitation[] = data) {
+  if (advancedFilters.length === 0 || advancedFilters.every(f => !f.value.trim())) {
+    setFilteredSolicitacoes(solicitacoes);
+    return;
+  }
+
+  const filtered = solicitacoes.filter(solicitacao => {
+    return advancedFilters.every(filter => {
+      if (!filter.value.trim()) return true;
+      let fieldValue: string | number = "";
+      let filterValue: string | number = filter.value;
+
+      switch (filter.field) {
+        case "id":
+          fieldValue = solicitacao.id;
+          break;
+        case "nomeSolicitante":
+          fieldValue = solicitacao.dadosPessoais.nome?.toLowerCase() || "";
+          filterValue = filter.value.toLowerCase();
+          break;
+        case "medicamento":
+          fieldValue = solicitacao.itemSolicitacao.medicamento?.toLowerCase() || "";
+          filterValue = filter.value.toLowerCase();
+          break;
+        case "dataSolicitacao":
+          // Data no formato dd/MM/yyyy
+          const [dia, mes, ano] = solicitacao.itemSolicitacao.dataSolicitacao.split("/").map(Number);
+          fieldValue = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+          break;
+        default:
+          return true;
+      }
+
+      switch (filter.operator) {
+        case "contains":
+          return String(fieldValue).includes(String(filterValue));
+        case "equals":
+          return fieldValue === filterValue;
+        case "startsWith":
+          return String(fieldValue).startsWith(String(filterValue));
+        case "endsWith":
+          return String(fieldValue).endsWith(String(filterValue));
+        case "gt":
+          return fieldValue > filterValue;
+        case "lt":
+          return fieldValue < filterValue;
+        case "gte":
+          return fieldValue >= filterValue;
+        case "lte":
+          return fieldValue <= filterValue;
+        default:
+          return true;
+      }
+    });
+  });
+
+  setFilteredSolicitacoes(filtered);
+}
+
+useEffect(() => {
+  applyAdvancedFilters();
+}, [advancedFilters, data]);
 
   const fetchSolicitacoes = async (pageNumber = 0) => {
     try {
       const { data } = await api.get<SolicitacaoResponse>(
-        `${ENDPOINTS.PEDIDOS.CRUD}?page=${pageNumber}&size=10`
+        `${ENDPOINTS.PEDIDOS.CRUD}?page=${pageNumber}&size=10&sort=dataHoraUltimaAtualizacao,desc`
       );
       setData(data.content.map(transformSolicitacaoAPI));
       setTotalPages(data.totalPages);
@@ -223,23 +311,61 @@ export default function GerenciarSolicitacoes() {
     }
   };
 
+  async function fetchSolicitacoesPorStatus(status: string, pageNumber = 0) {
+  try {
+    const { data } = await api.get<SolicitacaoResponse>(
+      `${ENDPOINTS.PEDIDOS.CRUD}/status/${status}?page=${pageNumber}&size=10&sort=dataHoraUltimaAtualizacao,desc`
+    );
+    setData(data.content.map(transformSolicitacaoAPI));
+    setTotalPages(data.totalPages);
+    setCurrentPage(data.number);
+  } catch (error) {
+    console.error("Erro ao buscar solicitações por status:", error);
+    toast.error("Erro ao carregar solicitações por status");
+  }
+}
+
   useEffect(() => {
     fetchSolicitacoes();
   }, []);
 
+  // Busca e-mails reais dos usuários ao carregar as solicitações
+  useEffect(() => {
+    const fetchEmails = async () => {
+      const uniqueIds = Array.from(
+        new Set(data.map((s) => s.dadosPessoais.id))
+      );
+      const emails: Record<string, string> = {};
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          try {
+            const res = await api.get(
+              `https://ongremediar.com.br/api/usuarios/${id}`
+            );
+            emails[id] = res.data.usuario?.user?.login || "Não informado";
+          } catch {
+            emails[id] = "Não informado";
+          }
+        })
+      );
+      setUserEmails(emails);
+    };
+    if (data.length > 0) fetchEmails();
+  }, [data]);
+
   const handleStatusChange = (solicitacaoId: string, newStatus: string) => {
-    setData(prevData => 
-      prevData.map(solicitacao => 
-        solicitacao.id === solicitacaoId 
-          ? { ...solicitacao, status: newStatus as Solicitation['status'] } 
+    setData((prevData) =>
+      prevData.map((solicitacao) =>
+        solicitacao.id === solicitacaoId
+          ? { ...solicitacao, status: newStatus as Solicitation["status"] }
           : solicitacao
       )
     );
-    
+
     setSelectedSolicitation(null);
     api.patch(`${ENDPOINTS.PEDIDOS.CRUD}/${solicitacaoId}/status`, {
       status: newStatus,
-      funcionarioId: currentUser.id
+      funcionarioId: currentUser.id,
     });
   };
 
@@ -253,15 +379,21 @@ export default function GerenciarSolicitacoes() {
           Nome do Solicitante
         </div>
       ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <User className="w-5 h-5 text-gray-600" />
-          <div className="flex flex-col">
-            <span>{row.original.dadosPessoais.nome}</span>
-            <span className="text-sm text-gray-500">{row.original.dadosPessoais.email}</span>
+      cell: ({ row }) => {
+        // Usa o e-mail buscado via API, se disponível
+        const email =
+          userEmails[row.original.dadosPessoais.id] ||
+          row.original.dadosPessoais.email;
+        return (
+          <div className="flex items-center gap-3">
+            <User className="w-5 h-5 text-gray-600" />
+            <div className="flex flex-col">
+              <span>{row.original.dadosPessoais.nome}</span>
+              <span className="text-sm text-gray-500">{email}</span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       accessorFn: (row) => row.itemSolicitacao.medicamento,
@@ -283,7 +415,7 @@ export default function GerenciarSolicitacoes() {
         </div>
       ),
       filterFn: (row, columnId, filterValue) => {
-        const rawValue = row.getValue<string>(columnId); 
+        const rawValue = row.getValue<string>(columnId);
         if (!rawValue) return false;
 
         try {
@@ -293,12 +425,14 @@ export default function GerenciarSolicitacoes() {
           const startDate = start ? new Date(start.setHours(0, 0, 0, 0)) : null;
           const endDate = end ? new Date(end.setHours(23, 59, 59, 999)) : null;
 
-          return (!startDate || rowDate >= startDate) &&
-            (!endDate || rowDate <= endDate);
+          return (
+            (!startDate || rowDate >= startDate) &&
+            (!endDate || rowDate <= endDate)
+          );
         } catch {
           return false;
         }
-      }
+      },
     },
     {
       accessorKey: "status",
@@ -311,21 +445,23 @@ export default function GerenciarSolicitacoes() {
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           {renderStatus(row.original.status)}
-          <span className="capitalize">{row.original.status.toLowerCase().replace(/_/g, ' ')}</span>
+          <span className="capitalize">
+            {row.original.status.toLowerCase().replace(/_/g, " ")}
+          </span>
         </div>
       ),
     },
   ];
 
   const parseCustomDate = (dateString: string): Date => {
-    const [datePart, timePart] = dateString.replace(',', '').split(' ');
-    const [day, month, year] = datePart.split('/').map(Number);
-    const [hours = 0, minutes = 0] = timePart?.split(':').map(Number) || [];
+    const [datePart, timePart] = dateString.replace(",", "").split(" ");
+    const [day, month, year] = datePart.split("/").map(Number);
+    const [hours = 0, minutes = 0] = timePart?.split(":").map(Number) || [];
     return new Date(year, month - 1, day, hours, minutes);
   };
 
   const table = useReactTable({
-    data,
+    data: filteredSolicitacoes,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -353,58 +489,20 @@ export default function GerenciarSolicitacoes() {
       <div className="w-full flex flex-col justify-center">
         <div className="w-full">
           <div className="flex items-center py-4 gap-2 flex-wrap">
-            <Input
-              placeholder="Filtrar por Solicitante"
-              value={(table.getColumn("nomeSolicitante")?.getFilterValue() as string) ?? ""}
-              onChange={(e) => table.getColumn("nomeSolicitante")?.setFilterValue(e.target.value)}
-              className="max-w-sm"
+            <AdvancedFiltersSolicitacoes
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              onApplyFilters={() => applyAdvancedFilters()}
+              onClearFilters={() => setAdvancedFilters([])}
             />
-
-            <Input
-              placeholder="Filtrar por medicamento"
-              value={(table.getColumn("medicamento")?.getFilterValue() as string) ?? ""}
-              onChange={(e) => table.getColumn("medicamento")?.setFilterValue(e.target.value)}
-              className="max-w-sm"
-            />
-
-            <div className="relative z-40">
-              <DatePicker
-                selectsRange
-                startDate={startDate}
-                endDate={endDate}
-                onChange={(update) => {
-                  const [start, end] = update;
-                  setDateRange([start, end]);
-                  table.getColumn("dataSolicitacao")?.setFilterValue({
-                    startDate: start,
-                    endDate: end ? new Date(end.setHours(23, 59, 59, 999)) : null
-                  });
-                }}
-                dateFormat="dd/MM/yyyy"
-                isClearable
-                locale={ptBR}
-                calendarStartDay={1}
-                showMonthDropdown
-                showYearDropdown
-                useShortMonthInDropdown
-                dropdownMode="select"
-                popperClassName="z-40"
-                customInput={
-                  <Button variant="outline" className="gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {startDate || endDate ? (
-                      `${startDate?.toLocaleDateString('pt-BR') || ''} - ${endDate?.toLocaleDateString('pt-BR') || ''}`
-                    ) : (
-                      "Filtrar por data"
-                    )}
-                  </Button>
-                }
-              />
-            </div>
 
             <Select
               onValueChange={(value) => {
-                table.getColumn("status")?.setFilterValue(value === "todos" ? "" : value);
+                if (value === "todos") {
+                  fetchSolicitacoes(0);
+                } else {
+                  fetchSolicitacoesPorStatus(value, 0);
+                }
               }}
             >
               <SelectTrigger className="w-[180px]">
@@ -416,7 +514,9 @@ export default function GerenciarSolicitacoes() {
                 <SelectItem value="EM_ANALISE">Em Análise</SelectItem>
                 <SelectItem value="APROVADA">Aprovada</SelectItem>
                 <SelectItem value="EM_SEPARACAO">Em Separação</SelectItem>
-                <SelectItem value="AGUARDANDO_RETIRADA">Aguardando Retirada</SelectItem>
+                <SelectItem value="AGUARDANDO_RETIRADA">
+                  Aguardando Retirada
+                </SelectItem>
                 <SelectItem value="CONCLUIDA">Concluída</SelectItem>
                 <SelectItem value="SEPARADA">Separada</SelectItem>
                 <SelectItem value="REJEITADA">Rejeitada</SelectItem>
@@ -424,7 +524,6 @@ export default function GerenciarSolicitacoes() {
               </SelectContent>
             </Select>
           </div>
-
           <div className="rounded-md border">
             <div className="relative h-[500px] overflow-auto">
               <table className="w-full border-collapse">
@@ -437,7 +536,10 @@ export default function GerenciarSolicitacoes() {
                           className="sticky top-0 z-20 bg-gray-100 dark:bg-gray-800 p-4 border-b text-left"
                           style={{ position: "sticky", top: 0 }}
                         >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -452,7 +554,10 @@ export default function GerenciarSolicitacoes() {
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="p-4 border-b">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -461,8 +566,10 @@ export default function GerenciarSolicitacoes() {
               </table>
             </div>
           </div>
-
-          <Dialog open={!!selectedSolicitation} onOpenChange={() => setSelectedSolicitation(null)}>
+          <Dialog
+            open={!!selectedSolicitation}
+            onOpenChange={() => setSelectedSolicitation(null)}
+          >
             <DialogContent className="min-w-full w-full max-w-none h-[90vh] max-h-[90vh] p-0 mx-0 px-4 flex flex-col">
               <div className="flex flex-col h-full relative">
                 <Button
@@ -497,7 +604,15 @@ export default function GerenciarSolicitacoes() {
             </DialogContent>
           </Dialog>
 
-          <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex items-center justify-center space-x-2 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchSolicitacoes(0)}
+              disabled={currentPage === 0}
+            >
+              Primeira
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -510,9 +625,33 @@ export default function GerenciarSolicitacoes() {
             >
               Anterior
             </Button>
-            <span className="text-sm">
-              Página {currentPage + 1} de {totalPages}
-            </span>
+
+            {/* Botões de navegação de página - máximo 10 */}
+            {(() => {
+              const maxButtons = 10;
+              let start = Math.max(0, currentPage - Math.floor(maxButtons / 2));
+              let end = start + maxButtons;
+              if (end > totalPages) {
+                end = totalPages;
+                start = Math.max(0, end - maxButtons);
+              }
+              return Array.from({ length: end - start }, (_, i) => {
+                const page = start + i;
+                return (
+                  <Button
+                    key={page}
+                    variant={page === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => fetchSolicitacoes(page)}
+                    className={`w-9 h-9 px-0 ${page === currentPage ? "font-bold" : ""}`}
+                    disabled={page === currentPage}
+                  >
+                    {page + 1}
+                  </Button>
+                );
+              });
+            })()}
+
             <Button
               variant="outline"
               size="sm"
@@ -524,6 +663,14 @@ export default function GerenciarSolicitacoes() {
               disabled={currentPage >= totalPages - 1}
             >
               Próximo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchSolicitacoes(totalPages - 1)}
+              disabled={currentPage >= totalPages - 1}
+            >
+              Última
             </Button>
           </div>
         </div>

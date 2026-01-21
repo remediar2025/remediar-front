@@ -18,7 +18,7 @@ export const funcionarioSchema = z.object({
   usuario: z.object({
     login: z.string().email("E-mail inválido"),
     password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
-    role: z.literal("FUNCIONARIO"),
+    role: z.literal("ADMIN"),
   }),
   confirmarSenha: z
     .string()
@@ -30,15 +30,39 @@ export const funcionarioSchema = z.object({
 
 
 
-export const medicacaoSchema = z.object({
-    nome: z.string().min(3, "O nome do medicamento deve ter pelo menos 3 caracteres."),
-    dataValidade: z.string().nonempty("A data de validade é obrigatória."),
-    dosagem: z.string().nonempty("A dosagem é obrigatória."),
-    lote: z.string().nonempty("O número do lote é obrigatório."),
-    refrigerado: z.boolean({ message: "Informe se o medicamento deve ser armazenado sob refrigeração." }),
-    tarja: z.string().nonempty("O número do tarja é obrigatório."),
-    receitaObrigatoria: z.boolean({ message: "Informe se o medicamento requer receita médica para compra." }),
+
+export const medicacaoStep1Schema = z.object({
+    nomeComercial: z.string().min(3, "O nome comercial do medicamento deve ter pelo menos 3 caracteres.").trim().nonempty("O nome comercial do medicamento é obrigatório."),
+    principioAtivo: z.string().trim().nonempty("O princípio ativo do medicamento é obrigatório."),
+    apresentacao: z.string().trim().nonempty("A apresentação do medicamento é obrigatória."),
+    codigoBarras: z.string().trim().nonempty("O código de barras do medicamentos é obrigatório."),
+    laboratorio: z.string().trim().nonempty("O laboratório do medicamento é obrigatório."),
+    statusProduto: z.string().trim().nonempty("O status do produto é obrigatório."),
 });
+
+export const medicacaoStep2Schema = z.object({
+    laboratorio: z.string().trim().nonempty("O laboratório do medicamento é obrigatório."),
+    precoMaximo: z.preprocess(
+        (val) => {
+            if (val === null || val === undefined || val === "") return undefined;
+            if (typeof val === "string") {
+                const cleaned = val.replace(/\D/g, "");
+                if (!cleaned) return undefined;
+                let masked = cleaned.replace(/(\d+)(\d{2})$/, "$1,$2");
+                masked = masked.replace(/^(0+)(\d)/, "$2");
+                masked = masked.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                const num = parseFloat(masked.replace(/\./g, '').replace(',', '.'));
+                return isNaN(num) ? undefined : num;
+            }
+            if (typeof val === "number") return val;
+            return undefined;
+        },
+        z.number({ required_error: "O preço máximo é obrigatório." }).min(0.01, "O preço máximo deve ser maior que zero.")
+    ),
+    statusProduto: z.string().trim().nonempty("O status do produto é obrigatório."),
+});
+
+export const medicacaoSchema = medicacaoStep1Schema.merge(medicacaoStep2Schema);
 
 
 export const solicitacaoSchema = z.object({
@@ -61,6 +85,5 @@ export const solicitacaoSchema = z.object({
     generoPaciente: z.enum(["MASCULINO", "FEMININO", "OUTRO"]),
     cpfPaciente: z.string().min(11, "CPF inválido"),
     contato: z.string().min(1, "Telefone obrigatório"),
-    // ❌ NÃO precisa mais validar nomePaciente do formulário
   }),
 });

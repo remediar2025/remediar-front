@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import Logo from "@/assets/LogoSecundaria.svg";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarItem {
   nome: string;
@@ -20,10 +21,20 @@ interface AppSidebarProps {
 export function AppSidebar({ menuPrincipalItems, configuracaoItems }: AppSidebarProps) {
   const pathname = usePathname();
 
+  const { user } = useAuth();
+
+  let dashboardHref = "/";
+  if (user?.role === "USER" || user?.role === "CLIENTE") {
+    dashboardHref = "/dashboard-cliente";
+  } else if (user?.role === "FUNCIONARIO" || user?.role === "ADMIN") {
+    dashboardHref = "/dashboard-funcionario";
+  }
+
+
   return (
     <aside className="w-full px-4 mt-4 text-sm">
       <Link
-        href="/"
+        href={dashboardHref}
         className="flex items-center justify-center gap-2 mb-8"
       >
           <div className="w-20 h-auto lg:w-32 justify-center items-center" >

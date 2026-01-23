@@ -1,5 +1,6 @@
-const API_BASE_URL = "https://remediar-api.mgioqc.easypanel.host";
 //const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const API_BASE_URL = "https://remediar-api.mgioqc.easypanel.host";
+// const API_BASE_URL = "http://localhost:8081";
 
 export const ENDPOINTS = {
   MEDICAMENTOS: {

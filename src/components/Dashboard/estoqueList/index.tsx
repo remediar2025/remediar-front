@@ -69,7 +69,7 @@ export function ListaMedicacoes({ data, onDataChange }: ListaMedicacoesProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Item ID</TableHead>
+            {/* <TableHead>Item ID</TableHead> */}
             <TableHead>Nome Comercial</TableHead>
             <TableHead>Princípio Ativo</TableHead>
             <TableHead>Apresentação</TableHead>
@@ -82,7 +82,7 @@ export function ListaMedicacoes({ data, onDataChange }: ListaMedicacoesProps) {
           {data.length > 0 ? (
             data.map((medicacao) => (
               <TableRow key={medicacao.itemEstoqueId}>
-                <TableCell className="font-medium">{medicacao.itemEstoqueId}</TableCell>
+                {/* <TableCell className="font-medium">{medicacao.itemEstoqueId}</TableCell> */}
                 <TableCell className="max-w-[200px] truncate" title={medicacao.nomeComercial}>
                   {medicacao.nomeComercial}
                 </TableCell>

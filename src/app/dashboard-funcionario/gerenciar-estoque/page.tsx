@@ -92,6 +92,7 @@ export default function GerenciarEstoque() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFiltrando, setIsFiltrando] = useState(false);
   const PAGE_SIZE = 10;
 
   const barcodeBuffer = useRef<string>("");
@@ -143,44 +144,7 @@ export default function GerenciarEstoque() {
     }
   };
 
-  // NOVA FUNÇÃO: Buscar todos os medicamentos do estoque
-  const buscarTodosMedicamentosEstoque = async (estoqueId: string) => {
-    if (!estoqueId) return;
 
-    try {
-      // Buscar todos os dados sem paginação (ou com size muito grande)
-      const { data } = await api.get(
-        `${ENDPOINTS.ITENS_ESTOQUE.ESTOQUE_ID}/${estoqueId}?page=0&size=10000&sort=id,desc`
-      );
-      
-      const todosMedicamentos: MedicacaoData[] = (data.content || []).map(
-        (item: any) => ({
-          itemEstoqueId: item.itemEstoqueId,
-          produtoId: item.produtoId,
-          nomeComercial: item.nomeComercial,
-          principioAtivo: item.principioAtivo,
-          apresentacao: item.apresentacao,
-          quantidade: item.quantidade,
-          dataValidade: [formatarData(item.dataValidade)],
-          descricao: null,
-          codigoBarras: "",
-          laboratorio: "",
-          precoMaximo: 0,
-          statusProduto: "ATIVO",
-        })
-      );
-
-      setTodosMedicamentos(todosMedicamentos);
-      setTotalElements(todosMedicamentos.length);
-      
-      // Aplicar filtros iniciais
-      applyAllFilters(todosMedicamentos);
-      
-    } catch (error) {
-      console.error("Erro ao buscar todos os medicamentos:", error);
-      toast.error("Erro ao carregar medicamentos do estoque");
-    }
-  };
 
   // NOVA FUNÇÃO: Aplicar todos os filtros ao dataset completo
   const applyAllFilters = (medicamentosCompletos: MedicacaoData[] = todosMedicamentos) => {
@@ -335,20 +299,76 @@ export default function GerenciarEstoque() {
 
   const buscarMedicacoesEstoque = async (
     estoqueId: string,
-    pageNumber: number = 0
+    pageNumber: number = 0,
+    filtroBusca?: string
   ) => {
     if (!estoqueId) return;
 
     try {
       setIsLoading(true);
-      setPage(pageNumber);
+      const filtroAtivo = typeof filtroBusca === 'string' ? filtroBusca : filtro;
       
-      // Se é a primeira carga ou mudou de estoque, buscar todos os dados
-      if (pageNumber === 0 || todosMedicamentos.length === 0) {
-        await buscarTodosMedicamentosEstoque(estoqueId);
+      if (filtroAtivo.trim() === "") {
+        // Sem filtro: buscar paginado do backend
+        setIsFiltrando(false);
+        const { data } = await api.get(
+          `${ENDPOINTS.ITENS_ESTOQUE.ESTOQUE_ID}/${estoqueId}?page=${pageNumber}&size=${PAGE_SIZE}&sort=id,desc`
+        );
+        
+        const medicamentosData: MedicacaoData[] = (data.content || []).map(
+          (item: any) => ({
+            itemEstoqueId: item.itemEstoqueId,
+            produtoId: item.produtoId,
+            nomeComercial: item.nomeComercial,
+            principioAtivo: item.principioAtivo,
+            apresentacao: item.apresentacao,
+            quantidade: item.quantidade,
+            dataValidade: [formatarData(item.dataValidade)],
+            descricao: null,
+            codigoBarras: "",
+            laboratorio: "",
+            precoMaximo: 0,
+            statusProduto: "ATIVO",
+          })
+        );
+        
+        setMedicacoes(medicamentosData);
+        setTodosMedicamentos(medicamentosData);
+        setMedicamentosFiltered(medicamentosData);
+        setFilteredMedicacoes(medicamentosData);
+        setTotalPages(data.totalPages);
+        setTotalElements(data.totalElements);
+        setTotalFilteredRecords(data.totalElements);
+        setPage(data.number);
       } else {
-        // Se só mudou de página, usar dados já filtrados
-        updateCurrentPageData(medicamentosFiltered, pageNumber);
+        // Com filtro: buscar todos os dados filtrados
+        setIsFiltrando(true);
+        const { data } = await api.get(
+          `${ENDPOINTS.ITENS_ESTOQUE.ESTOQUE_ID}/${estoqueId}?page=0&size=1000&sort=id,desc`
+        );
+        
+        const todosMedicamentosData: MedicacaoData[] = (data.content || []).map(
+          (item: any) => ({
+            itemEstoqueId: item.itemEstoqueId,
+            produtoId: item.produtoId,
+            nomeComercial: item.nomeComercial,
+            principioAtivo: item.principioAtivo,
+            apresentacao: item.apresentacao,
+            quantidade: item.quantidade,
+            dataValidade: [formatarData(item.dataValidade)],
+            descricao: null,
+            codigoBarras: "",
+            laboratorio: "",
+            precoMaximo: 0,
+            statusProduto: "ATIVO",
+          })
+        );
+        
+        setTodosMedicamentos(todosMedicamentosData);
+        setTotalElements(todosMedicamentosData.length);
+        
+        // Aplicar filtros
+        applyAllFilters(todosMedicamentosData);
       }
       
     } catch (error) {
@@ -406,17 +426,29 @@ export default function GerenciarEstoque() {
   // Funções de paginação
   const handleNextPage = () => {
     if (page + 1 < totalPages) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      updateCurrentPageData(medicamentosFiltered, nextPage);
+      if (isFiltrando) {
+        // Paginação local quando está filtrando
+        const nextPage = page + 1;
+        setPage(nextPage);
+        updateCurrentPageData(medicamentosFiltered, nextPage);
+      } else {
+        // Paginação do backend quando não está filtrando
+        buscarMedicacoesEstoque(estoqueSelecionado, page + 1, filtro);
+      }
     }
   };
 
   const handlePreviousPage = () => {
     if (page > 0) {
-      const prevPage = page - 1;
-      setPage(prevPage);
-      updateCurrentPageData(medicamentosFiltered, prevPage);
+      if (isFiltrando) {
+        // Paginação local quando está filtrando
+        const prevPage = page - 1;
+        setPage(prevPage);
+        updateCurrentPageData(medicamentosFiltered, prevPage);
+      } else {
+        // Paginação do backend quando não está filtrando
+        buscarMedicacoesEstoque(estoqueSelecionado, page - 1, filtro);
+      }
     }
   };
 
@@ -424,8 +456,9 @@ export default function GerenciarEstoque() {
   const handleEstoqueChange = (novoEstoqueId: string) => {
     setEstoqueSelecionado(novoEstoqueId);
     setPage(0);
-    setTodosMedicamentos([]); // Limpar dados anteriores
-    buscarMedicacoesEstoque(novoEstoqueId, 0);
+    setFiltro("");
+    setTodosMedicamentos([]);
+    buscarMedicacoesEstoque(novoEstoqueId, 0, "");
   };
 
   useEffect(() => {
@@ -532,6 +565,22 @@ export default function GerenciarEstoque() {
       setPage(0);
     }
   }, [estoqueSelecionado]);
+
+  // Monitorar mudanças no filtro de texto
+  useEffect(() => {
+    if (!estoqueSelecionado) return;
+    
+    if (filtro.trim() === "") {
+      buscarMedicacoesEstoque(estoqueSelecionado, 0, "");
+      return;
+    }
+    
+    const timeout = setTimeout(() => {
+      buscarMedicacoesEstoque(estoqueSelecionado, 0, filtro);
+    }, 500);
+    
+    return () => clearTimeout(timeout);
+  }, [filtro]);
 
   // Handlers para filtros
   const handleFiltersChange = (newFilters: FilterRule[]) => {

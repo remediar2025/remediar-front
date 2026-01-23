@@ -32,7 +32,7 @@ interface AdvancedFiltersProps {
 }
 
 const FILTER_FIELDS = [
-  { value: "itemEstoqueId", label: "Item ID" },
+  // { value: "itemEstoqueId", label: "Item ID" },
   { value: "nomeComercial", label: "Nome Comercial" },
   { value: "principioAtivo", label: "Princípio Ativo" },
   { value: "quantidade", label: "Quantidade" },

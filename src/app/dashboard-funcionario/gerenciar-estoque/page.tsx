@@ -314,10 +314,9 @@ export default function GerenciarEstoque() {
         const { data } = await api.get(
           `${ENDPOINTS.ITENS_ESTOQUE.ESTOQUE_ID}/${estoqueId}?page=${pageNumber}&size=${PAGE_SIZE}&sort=id,desc`
         );
-        
         const medicamentosData: MedicacaoData[] = (data.content || []).map(
           (item: any) => ({
-            itemEstoqueId: item.itemEstoqueId,
+            itemEstoqueId: item.id,
             produtoId: item.produtoId,
             nomeComercial: item.nomeComercial,
             principioAtivo: item.principioAtivo,

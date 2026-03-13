@@ -131,12 +131,12 @@ interface ErrorResponse {
 const transformSolicitacaoAPI = (apiData: any): Solicitation => ({
   id: apiData.solicitacao.id,
   dadosPessoais: {
-    id: apiData.solicitacao.usuario.id,
-    nome: apiData.solicitacao.usuario.nome,
-    documento: apiData.solicitacao.usuario.documento,
-    telefone: apiData.solicitacao.usuario.telefone,
-    email: apiData.solicitacao.usuario.email,
-    endereco: apiData.solicitacao.usuario.endereco,
+    id: apiData.solicitacao.usuario?.id ,
+    nome: apiData.solicitacao.usuario?.nome,
+    documento: apiData.solicitacao.usuario?.documento,
+    telefone: apiData.solicitacao.usuario?.telefone,
+    email: apiData.solicitacao.usuario?.email,
+    endereco: apiData.solicitacao.usuario?.endereco,
   },
   itemSolicitacao: {
     medicamento: apiData.item.nomeComercialOrPrincipioAtivo || "Desconhecido",

@@ -23,6 +23,7 @@ const handleDeleteMedicamento = (id: number, onDataChange?: () => void) => {
         }
 
       } catch (error) {
+        console.error("Erro ao excluir medicamento:", error);
         toast.error("Erro ao excluir medicamento.");
       }
     }

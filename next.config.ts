@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
   },
 
   env: {
-    NEXT_PUBLIC_API_URL: 'https://remediar-api-api.kt6xxn.easypanel.host//api',
-    // NEXT_PUBLIC_API_URL: 'http://localhost:8081/api',
+    NEXT_PUBLIC_API_URL: 'https://remediar-api-api.kt6xxn.easypanel.host',
+    // NEXT_PUBLIC_API_URL: 'http://localhost:8081',
   }
 };
 

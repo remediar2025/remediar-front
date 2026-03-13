@@ -5,9 +5,9 @@ FROM node:18-bullseye
 WORKDIR /app
 
 # Variáveis de ambiente - colocar antes do npm install!
-ENV NEXT_PUBLIC_API_URL=https://remediar-api-api.kt6xxn.easypanel.host//api
+ENV NEXT_PUBLIC_API_URL=https://remediar-api-api.kt6xxn.easypanel.host
 # ENV NEXT_PUBLIC_API_URL= http://localhost:8081/api
-ENV NEXT_PUBLIC_API_BASE_URL=https://remediar-api-api.kt6xxn.easypanel.host//api
+ENV NEXT_PUBLIC_API_BASE_URL=https://remediar-api-api.kt6xxn.easypanel.host
 # ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:8081/api
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

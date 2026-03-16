@@ -422,10 +422,11 @@ export default function MultiStepRegister() {
 
       if (resposta && resposta.id) {
         // sucesso: redireciona para a página de login
-        router.push(
-          "/login/verificacao?email=" +
-            encodeURIComponent(dadosCadastro.user.login)
-        );
+        router.push("/login");
+        // router.push(
+        //   "/login/verificacao?email=" +
+        //     encodeURIComponent(dadosCadastro.user.login)
+        // );
       } else {
         setErro("Não foi possível cadastrar. Tente novamente.");
       }

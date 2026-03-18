@@ -432,9 +432,10 @@ export default function MultiStepRegister() {
         // setErro("Não foi possível cadastrar. Tente novamente.");
       }
     } catch (err: any) {
-      setErro(
-        err.response?.data?.mensagem || "Erro ao cadastrar. Tente novamente."
-      );
+        router.push("/login");
+      // setErro(
+      //   err.response?.data?.mensagem || "Erro ao cadastrar. Tente novamente."
+      // );
     } finally {
       setCarregando(false);
     }

@@ -432,13 +432,9 @@ export default function MultiStepRegister() {
         // setErro("Não foi possível cadastrar. Tente novamente.");
       }
     } catch (err: any) {
-      //Se ele retorna erro ststus code 500 seignifica que o usuário está cadastrado
-        if(err.status === 500) return router.push("/login") 
-
-        if(err.status === 400) {
-          setErro(err.response?.data?.erro || "Erro ao cadastrar. Tente novamente.");
-        } 
-        console.error("Erro ao cadastrar usuário:", err);
+      setErro(
+        err.response?.data?.mensagem || "Erro ao cadastrar. Tente novamente."
+      );
     } finally {
       setCarregando(false);
     }

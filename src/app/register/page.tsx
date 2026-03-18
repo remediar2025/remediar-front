@@ -428,7 +428,8 @@ export default function MultiStepRegister() {
         //     encodeURIComponent(dadosCadastro.user.login)
         // );
       } else {
-        setErro("Não foi possível cadastrar. Tente novamente.");
+        router.push("/login");
+        // setErro("Não foi possível cadastrar. Tente novamente.");
       }
     } catch (err: any) {
       setErro(

@@ -113,9 +113,7 @@ export default function VisualizarEstoque() {
         produtoId: medicacao.produtoId,
         quantidade: parseInt(formData.quantidade),
         dataValidade: formatarDataParaBackend(formData.dataValidade),
-        estoqueId: (
-          await api.get(`/estoque/findByItemEstoque/${medicacao.itemEstoqueId}`)
-        ).data.id,
+        estoqueId: medicacao.estoqueId,
       });
 
       // Atualizar dados locais - corrigido para manter o tipo array

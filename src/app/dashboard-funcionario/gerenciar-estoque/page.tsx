@@ -317,6 +317,7 @@ export default function GerenciarEstoque() {
         const medicamentosData: MedicacaoData[] = (data.content || []).map(
           (item: any) => ({
             itemEstoqueId: item.id,
+            estoqueId: parseInt(estoqueId),
             produtoId: item.produtoId,
             nomeComercial: item.nomeComercial,
             principioAtivo: item.principioAtivo,
@@ -349,6 +350,7 @@ export default function GerenciarEstoque() {
         const todosMedicamentosData: MedicacaoData[] = (data.content || []).map(
           (item: any) => ({
             itemEstoqueId: item.itemEstoqueId,
+            estoqueId: parseInt(estoqueId),
             produtoId: item.produtoId,
             nomeComercial: item.nomeComercial,
             principioAtivo: item.principioAtivo,

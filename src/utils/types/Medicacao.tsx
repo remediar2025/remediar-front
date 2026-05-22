@@ -1,5 +1,6 @@
 export interface MedicacaoData {
     itemEstoqueId: number;
+    estoqueId?: number;
     produtoId: number;
     nomeComercial: string;
     descricao: string | null;

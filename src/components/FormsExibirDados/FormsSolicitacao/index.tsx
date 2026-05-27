@@ -375,9 +375,9 @@ export function SolicitacaoForm({ solicitation, onClose, onStatusChange, current
 
                     onStatusChange("APROVADA");
                     onClose();
-                  } catch (error) {
+                  } catch (error: any) {
                     console.error("Erro ao aprovar solicitação:", error);
-                    toast.error("Erro ao aprovar solicitação");
+                    toast.error(error.response?.data?.message || "Erro ao aprovar solicitação");
                   }
                 }}
               >

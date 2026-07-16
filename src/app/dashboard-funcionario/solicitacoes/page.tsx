@@ -5,13 +5,6 @@ import { registerLocale } from "react-datepicker";
 import { ptBR } from "date-fns/locale/pt-BR";
 import { ConfiguracaoItems, menuPrincipalItems } from "@/utils/constants";
 registerLocale("pt-BR", ptBR);
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import DashboardLayout from "@/components/Dashboard/layouts/dashboardLayout";
 import { SolicitacaoForm } from "@/components/FormsExibirDados/FormsSolicitacao";
 import DatePicker from "react-datepicker";
@@ -53,7 +46,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { api } from "@/services/api/api";
 import ENDPOINTS from "@/services/endpoints";
-import AdvancedFiltersSolicitacoes, { FilterRuleSolicitacao } from "@/components/Dashboard/Filters/AdvancedFiltersSolcitacoes";
+import AdvancedFiltersSolicitacoes, {
+  SolicitacaoFiltros,
+  FILTROS_SOLICITACAO_VAZIOS,
+} from "@/components/Dashboard/Filters/AdvancedFiltersSolcitacoes";
 
 type Usuario = {
   id: number;
@@ -186,6 +182,14 @@ const parseCustomDate = (dateString: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+const extrairMensagemErro = (error: unknown, fallback: string): string => {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { erro?: string } } }).response;
+    if (response?.data?.erro) return response.data.erro;
+  }
+  return fallback;
+};
+
 const renderStatus = (status: string) => {
   switch (status) {
     case "PENDENTE":
@@ -226,107 +230,50 @@ export default function GerenciarSolicitacoes() {
   // Novo estado para armazenar e-mails buscados
   const [userEmails, setUserEmails] = useState<Record<string, string>>({});
 
-  const [advancedFilters, setAdvancedFilters] = useState<FilterRuleSolicitacao[]>([]);
-  const [filteredSolicitacoes, setFilteredSolicitacoes] = useState<Solicitation[]>([]);
+  const [filtros, setFiltros] = useState<SolicitacaoFiltros>(FILTROS_SOLICITACAO_VAZIOS);
 
   const currentUser = {
     id: "user-id-exemplo",
     nome: "Funcionário Exemplo",
   };
 
-  function applyAdvancedFilters(solicitacoes: Solicitation[] = data) {
-  if (advancedFilters.length === 0 || advancedFilters.every(f => !f.value.trim())) {
-    setFilteredSolicitacoes(solicitacoes);
-    return;
-  }
-
-  const filtered = solicitacoes.filter(solicitacao => {
-    return advancedFilters.every(filter => {
-      if (!filter.value.trim()) return true;
-      let fieldValue: string | number = "";
-      let filterValue: string | number = filter.value;
-
-      switch (filter.field) {
-        case "id":
-          fieldValue = solicitacao.id;
-          break;
-        case "nomeSolicitante":
-          fieldValue = solicitacao.dadosPessoais.nome?.toLowerCase() || "";
-          filterValue = filter.value.toLowerCase();
-          break;
-        case "medicamento":
-          fieldValue = solicitacao.itemSolicitacao.medicamento?.toLowerCase() || "";
-          filterValue = filter.value.toLowerCase();
-          break;
-        case "dataSolicitacao":
-          // Data no formato dd/MM/yyyy
-          const [dia, mes, ano] = solicitacao.itemSolicitacao.dataSolicitacao.split("/").map(Number);
-          fieldValue = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-          break;
-        default:
-          return true;
-      }
-
-      switch (filter.operator) {
-        case "contains":
-          return String(fieldValue).includes(String(filterValue));
-        case "equals":
-          return fieldValue === filterValue;
-        case "startsWith":
-          return String(fieldValue).startsWith(String(filterValue));
-        case "endsWith":
-          return String(fieldValue).endsWith(String(filterValue));
-        case "gt":
-          return fieldValue > filterValue;
-        case "lt":
-          return fieldValue < filterValue;
-        case "gte":
-          return fieldValue >= filterValue;
-        case "lte":
-          return fieldValue <= filterValue;
-        default:
-          return true;
-      }
-    });
-  });
-
-  setFilteredSolicitacoes(filtered);
-}
-
-useEffect(() => {
-  applyAdvancedFilters();
-}, [advancedFilters, data]);
-
-  const fetchSolicitacoes = async (pageNumber = 0) => {
+  const fetchSolicitacoes = async (pageNumber = 0, filtrosAtuais: SolicitacaoFiltros = filtros) => {
     try {
+      const params = new URLSearchParams();
+      params.set("page", String(pageNumber));
+      params.set("size", "10");
+      params.set("sort", "dataHoraUltimaAtualizacao,desc");
+      if (filtrosAtuais.id.trim()) params.set("id", filtrosAtuais.id.trim());
+      if (filtrosAtuais.nomeSolicitante.trim()) params.set("nomeSolicitante", filtrosAtuais.nomeSolicitante.trim());
+      if (filtrosAtuais.medicamento.trim()) params.set("medicamento", filtrosAtuais.medicamento.trim());
+      if (filtrosAtuais.status) params.set("status", filtrosAtuais.status);
+      if (filtrosAtuais.dataSolicitacaoInicio) params.set("dataSolicitacaoInicio", filtrosAtuais.dataSolicitacaoInicio);
+      if (filtrosAtuais.dataSolicitacaoFim) params.set("dataSolicitacaoFim", filtrosAtuais.dataSolicitacaoFim);
+
       const { data } = await api.get<SolicitacaoResponse>(
-        `${ENDPOINTS.PEDIDOS.CRUD}?page=${pageNumber}&size=10&sort=dataHoraUltimaAtualizacao,desc`
+        `${ENDPOINTS.PEDIDOS.CRUD}?${params.toString()}`
       );
       setData(data.content.map(transformSolicitacaoAPI));
       setTotalPages(data.totalPages);
       setCurrentPage(data.number);
     } catch (error) {
       console.error("Erro ao buscar solicitações:", error);
-      toast.error("Erro ao carregar solicitações");
+      toast.error(extrairMensagemErro(error, "Erro ao carregar solicitações"));
     }
   };
 
-  async function fetchSolicitacoesPorStatus(status: string, pageNumber = 0) {
-  try {
-    const { data } = await api.get<SolicitacaoResponse>(
-      `${ENDPOINTS.PEDIDOS.CRUD}/status/${status}?page=${pageNumber}&size=10&sort=dataHoraUltimaAtualizacao,desc`
-    );
-    setData(data.content.map(transformSolicitacaoAPI));
-    setTotalPages(data.totalPages);
-    setCurrentPage(data.number);
-  } catch (error) {
-    console.error("Erro ao buscar solicitações por status:", error);
-    toast.error("Erro ao carregar solicitações por status");
-  }
-}
+  const handleApplyFiltros = (novosFiltros: SolicitacaoFiltros) => {
+    setFiltros(novosFiltros);
+    fetchSolicitacoes(0, novosFiltros);
+  };
+
+  const handleClearFiltros = () => {
+    setFiltros(FILTROS_SOLICITACAO_VAZIOS);
+    fetchSolicitacoes(0, FILTROS_SOLICITACAO_VAZIOS);
+  };
 
   useEffect(() => {
-    fetchSolicitacoes();
+    fetchSolicitacoes(0, FILTROS_SOLICITACAO_VAZIOS);
   }, []);
 
   // Busca e-mails reais dos usuários ao carregar as solicitações
@@ -461,7 +408,7 @@ useEffect(() => {
   };
 
   const table = useReactTable({
-    data: filteredSolicitacoes,
+    data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -490,39 +437,10 @@ useEffect(() => {
         <div className="w-full">
           <div className="flex items-center py-4 gap-2 flex-wrap">
             <AdvancedFiltersSolicitacoes
-              filters={advancedFilters}
-              onFiltersChange={setAdvancedFilters}
-              onApplyFilters={() => applyAdvancedFilters()}
-              onClearFilters={() => setAdvancedFilters([])}
+              value={filtros}
+              onApply={handleApplyFiltros}
+              onClear={handleClearFiltros}
             />
-
-            <Select
-              onValueChange={(value) => {
-                if (value === "todos") {
-                  fetchSolicitacoes(0);
-                } else {
-                  fetchSolicitacoesPorStatus(value, 0);
-                }
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="PENDENTE">Pendente</SelectItem>
-                <SelectItem value="EM_ANALISE">Em Análise</SelectItem>
-                <SelectItem value="APROVADA">Aprovada</SelectItem>
-                <SelectItem value="EM_SEPARACAO">Em Separação</SelectItem>
-                <SelectItem value="AGUARDANDO_RETIRADA">
-                  Aguardando Retirada
-                </SelectItem>
-                <SelectItem value="CONCLUIDA">Concluída</SelectItem>
-                <SelectItem value="SEPARADA">Separada</SelectItem>
-                <SelectItem value="REJEITADA">Rejeitada</SelectItem>
-                <SelectItem value="CANCELADA">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="rounded-md border">
             <div className="relative h-[500px] overflow-auto">
